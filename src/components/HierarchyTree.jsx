@@ -5,7 +5,7 @@ import { ChevronRight, ChevronDown, Cpu } from 'lucide-react';
  * Build a hierarchical tree from a flat list of instances.
  * Instance paths use "." as separator.
  */
-function buildTree(rows, getKey) {
+function buildTree(rows) {
   const root = {};
 
   for (const row of rows) {
@@ -81,7 +81,7 @@ function TreeNode({ name, node, depth, renderRow }) {
 }
 
 export default function HierarchyTree({ rows, renderRow }) {
-  const tree = useMemo(() => buildTree(rows, (r) => r.instance), [rows]);
+  const tree = useMemo(() => buildTree(rows), [rows]);
 
   return (
     <div className="bg-slate-900/50 border border-slate-700 rounded-xl overflow-auto max-h-[60vh] p-2">

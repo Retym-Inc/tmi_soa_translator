@@ -31,8 +31,9 @@ export function parseVoltageEntry(entry) {
   const rangeStr = parts[n - 3]
   const condition = parts.slice(0, n - 3).join(', ')
 
-  const durationValue = parseFloat(durationStr) // seconds, may be e.g. 8.58e-11
-  const percentValue = parseFloat(percentStr)
+  // Strip unit suffixes explicitly before parsing for clarity
+  const durationValue = parseFloat(durationStr.replace(/s$/i, ''))
+  const percentValue = parseFloat(percentStr.replace(/%$/, ''))
 
   return {
     param,        // e.g. "Vgs", "|Vds|", "Vgsr"

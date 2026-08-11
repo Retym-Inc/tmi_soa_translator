@@ -1,0 +1,4 @@
+# GUI dependencies for app.py (desktop analyzer).
+# The command-line translator (tmi_soa_translator.py) needs none of these.
+customtkinter==5.2.2
+pandas==2.2.2

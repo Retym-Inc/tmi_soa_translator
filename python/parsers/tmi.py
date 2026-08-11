@@ -8,6 +8,9 @@ _IO_RE = re.compile(r"Area sum of (\d+) IO devices")
 _EFFECTIVE_RE = re.compile(r"Effective_Core_gate_area_by_TMI\s*=\s*([\d.eE+\-]+)\s*um")
 _SUM_DAGE_RE = re.compile(r"^Sum dageTime\s*=\s*([\d.]+\s*yr)")
 _DAGE_RE = re.compile(r"^dageTime\s*=\s*([\d.]+\s*yr)")
+_SOA_BOUNDARY_RE = re.compile(
+    r"Safe Operation Area checked|soa_sorting_num|Voltage_in_SOA"
+)
 
 
 def parse_lifetime_value(raw: str):
@@ -76,6 +79,8 @@ def parse_tmi(text: str) -> Optional[Dict[str, object]]:
     records = []
     for i in range(header_idx + 1, len(lines)):
         line = lines[i].strip()
+        if _SOA_BOUNDARY_RE.search(line):
+            break
         if not line or line.startswith("*") or line.startswith("[") or line.startswith("]"):
             continue
         if line == "VV":

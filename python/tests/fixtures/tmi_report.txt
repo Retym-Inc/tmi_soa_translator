@@ -1,0 +1,9 @@
+TMI degradation report
+Area sum of 123 Core devices
+Area sum of 45 IO devices
+Effective_Core_gate_area_by_TMI = 1.23e+04 um
+Sum dageTime = 0.500 yr
+dageTime = 0.250 yr
+Rank Instance didsat(HCI+BTI,%) didlin(HCI+BTI,%) dvtlin(HCI+BTI,V) didsat(HCI,%) didlin(HCI,%) dvtlin(HCI,V) didsat(BTI,%) didlin(BTI,%) dvtlin(BTI,V) lifetime(HCI+BTI,yr) lifetime(HCI,yr) lifetime(BTI,yr) lifetime_item EOL_spec Model
+1 U1/M1 0.1 0.2 0.3 0.01 0.02 0.03 0.04 0.05 0.06 >100 4.667e-04 garbage ITEM1 SPEC1 model.tmi
+2 U2/M2 0.5 0.6 0.7 0.08 0.09 0.10 0.11 0.12 0.13 1.5 0.5 0.1 ITEM2 SPEC2 model with spaces

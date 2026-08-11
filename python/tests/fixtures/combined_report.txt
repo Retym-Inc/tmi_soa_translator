@@ -1,0 +1,9 @@
+Safe Operation Area checked
+soa_sorting_num is set to 2
+Rank	Instance	Voltage_in_SOA	Model
+1	XA/M1	(Vgs as Vgs > 0.5V, 0.5V~1.0V, 1.0s, 5%)	model_soa
+
+TMI degradation report
+Area sum of 10 Core devices
+Rank Instance didsat(HCI+BTI,%) didlin(HCI+BTI,%) dvtlin(HCI+BTI,V) didsat(HCI,%) didlin(HCI,%) dvtlin(HCI,V) didsat(BTI,%) didlin(BTI,%) dvtlin(BTI,V) lifetime(HCI+BTI,yr) lifetime(HCI,yr) lifetime(BTI,yr) lifetime_item EOL_spec Model
+1 XB/M2 0.1 0.2 0.3 0.01 0.02 0.03 0.04 0.05 0.06 2 0.5 0.2 ITEM SPEC model_tmi

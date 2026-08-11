@@ -1,0 +1,5 @@
+Safe Operation Area checked
+soa_sorting_num is set to 5
+Rank	Instance	Voltage_in_SOA	Model
+1	XU1/M1	(Vgs as Vgs > 0.96V, 0.96V~1.7768V, 8.58e-11s, 0.29%)	(modelA)	nmos_hvt
+2	XU2/M2	(Vds as Vds < 1.2V, 0V~1.2V, BADs, xx%)	pmos_lvt

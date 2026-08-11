@@ -7,6 +7,30 @@ Pure-Python (standard library only), fully offline, cross-platform CLI for parsi
 - Python 3.8+
 - No `pip install` required
 - No internet/network access required
+- For the GUI: Tkinter (bundled with most Python installs; on Debian/Ubuntu install `python3-tk`)
+
+## Offline desktop GUI
+
+A Tkinter desktop app that reproduces the web dashboard fully offline: upload/paste
+zone, KPI cards, a sortable/filterable data table with CSV export, charts, and a
+hierarchy tree. It reuses the same parsers as the CLI.
+
+```bash
+# Open the file picker
+python3 python/tmi_soa_gui.py
+
+# Load a report on startup
+python3 python/tmi_soa_gui.py report.rpt
+```
+
+On Debian/Ubuntu, if you see `ModuleNotFoundError: No module named 'tkinter'`,
+install Tkinter first:
+
+```bash
+sudo apt-get install -y python3-tk
+```
+
+## Command-line interface
 
 ## Quick start
 

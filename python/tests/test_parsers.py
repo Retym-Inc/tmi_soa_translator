@@ -7,6 +7,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from parsers.detect import detect_and_parse
 from parsers.soa import parse_soa, parse_voltage_entry
 from parsers.tmi import format_lifetime_years, parse_lifetime_value, parse_tmi
+from parsers.tmi_temp import (
+    format_temperature,
+    parse_temperature_value,
+    parse_tmi_temp,
+    temperature_annotation,
+)
 
 FIXTURE_DIR = pathlib.Path(__file__).resolve().parent / "fixtures"
 
@@ -76,6 +82,45 @@ class TestDetection(unittest.TestCase):
         self.assertEqual(["SOA", "TMI"], [r["type"] for r in both])
 
         self.assertIsNone(detect_and_parse("not a report"))
+
+
+class TestTMITemperatureParser(unittest.TestCase):
+    def _report(self):
+        text = (FIXTURE_DIR / "tmi_temp_report.txt").read_text(encoding="utf-8")
+        return parse_tmi_temp(text)
+
+    def test_parse_records(self):
+        parsed = self._report()
+        self.assertEqual("TMI-TEMP", parsed["type"])
+        self.assertEqual(6, len(parsed["records"]))
+        first = parsed["records"][0]
+        self.assertEqual(1, first["rank"])
+        self.assertEqual("OUTPUT_DRIVER.I1.M2", first["instance"])
+        self.assertEqual(160.8, first["dtemperature_avg"])
+        self.assertEqual("*", first["annotation"])
+        self.assertEqual("nch_ulvt_mac.1", first["model"])
+
+    def test_double_annotation(self):
+        parsed = self._report()
+        double = parsed["records"][2]
+        self.assertEqual("**", double["annotation"])
+        self.assertEqual(160.3, double["dtemperature_avg"])
+
+    def test_value_helpers(self):
+        self.assertEqual(160.8, parse_temperature_value("1.608e+02*"))
+        self.assertEqual(7.109, parse_temperature_value("7.109e+00"))
+        self.assertIsNone(parse_temperature_value("garbage"))
+        self.assertEqual("**", temperature_annotation("1.6e2**"))
+        self.assertEqual("", temperature_annotation("1.6e2"))
+
+    def test_format_temperature(self):
+        self.assertEqual("-", format_temperature(None))
+        self.assertEqual("1.608e+02 \u00b0C", format_temperature(160.8))
+
+    def test_detect_temperature_report(self):
+        text = (FIXTURE_DIR / "tmi_temp_report.txt").read_text(encoding="utf-8")
+        parsed = detect_and_parse(text)
+        self.assertEqual("TMI-TEMP", parsed["type"])
 
 
 if __name__ == "__main__":

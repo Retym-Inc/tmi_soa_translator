@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from parsers.detect import detect_and_parse
 from parsers.tmi import format_lifetime_years
+from parsers.tmi_temp import format_temperature
 
 TOOL_VERSION = "1.0.0"
 
@@ -87,6 +88,17 @@ def lifetime_color(years):
     return GREEN
 
 
+def temperature_color(temp):
+    # Higher average temperature is worse; 150 C is the annotated critical bound.
+    if not _is_finite_number(temp):
+        return FAINT
+    if temp >= 150:
+        return RED
+    if temp >= 10:
+        return ORANGE
+    return GREEN
+
+
 # ─── Report-wide statistics (KPI cards) ──────────────────────────────────────
 def soa_kpis(records):
     model_counts, param_counts = {}, {}
@@ -137,6 +149,27 @@ def tmi_kpis(records):
     ]
 
 
+def temp_kpis(records):
+    finite = [r for r in records if _is_finite_number(r.get("dtemperature_avg"))]
+    finite.sort(key=lambda r: r["dtemperature_avg"], reverse=True)
+    hottest = finite[0] if finite else None
+    above_150 = sum(1 for r in finite if r["dtemperature_avg"] >= 150)
+    model_counts = {}
+    for r in records:
+        model_counts[r["model"]] = model_counts.get(r["model"], 0) + 1
+    top_model = max(model_counts.items(), key=lambda kv: kv[1], default=None)
+    return [
+        ("Hottest Instance",
+         format_temperature(hottest["dtemperature_avg"]) if hottest else "-",
+         hottest["instance"] if hottest else "N/A", RED),
+        ("Devices \u2265 150 \u00b0C", str(above_150),
+         "dtemperature_avg \u2265 150 \u00b0C", ORANGE),
+        ("Top Model", top_model[0] if top_model else "-",
+         "{} instances".format(top_model[1] if top_model else 0), PURPLE),
+        ("Total Analyzed", str(len(records)), "device instances", BLUE),
+    ]
+
+
 # ─── CSV export (matches the web app's download format) ──────────────────────
 def report_to_csv(report):
     output = StringIO()
@@ -149,6 +182,12 @@ def report_to_csv(report):
             writer.writerow([r["rank"], r["instance"], r["lifetime_hci_bti_raw"],
                              r["lifetime_hci_raw"], r["lifetime_bti_raw"],
                              r["lifetime_item"], r["eol_spec"], r["model"]])
+    elif report["type"] == "TMI-TEMP":
+        writer.writerow(["Rank", "Instance", "dtemperature_avg", "Annotation",
+                         "Model"])
+        for r in report["records"]:
+            writer.writerow([r["rank"], r["instance"], r["dtemperature_avg_raw"],
+                             r["annotation"], r["model"]])
     else:
         writer.writerow(["Rank", "Instance", "#Violations", "Parameters",
                          "WorstDuration(s)", "WorstDutyCycle(%)", "Model"])
@@ -341,6 +380,20 @@ class TranslatorApp(tk.Tk):
                   fg="white", font=UI_BOLD, relief="flat", padx=18, pady=6,
                   activebackground="#1d4ed8", activeforeground="white").pack()
 
+        # File-path entry: type/paste an absolute path and load it directly.
+        path_row = tk.Frame(wrap, bg=BG)
+        path_row.pack(fill="x", pady=(18, 0))
+        tk.Label(path_row, text="File path:", bg=BG, fg=MUTED, font=UI).pack(side="left")
+        self.path_var = tk.StringVar()
+        path_entry = tk.Entry(path_row, textvariable=self.path_var, bg=PANEL, fg=TEXT,
+                              insertbackground=TEXT, font=MONO_SM, relief="flat",
+                              highlightbackground=BORDER, highlightthickness=1)
+        path_entry.pack(side="left", fill="x", expand=True, padx=8)
+        path_entry.bind("<Return>", lambda _e: self._load_from_path_entry())
+        tk.Button(path_row, text="Load path", command=self._load_from_path_entry,
+                  bg=PANEL_ALT, fg=TEXT, font=UI, relief="flat", padx=12, pady=4,
+                  activebackground=BORDER, activeforeground="white").pack(side="left")
+
         tk.Label(wrap, text="\u2014 or paste report text \u2014", bg=BG, fg=FAINT,
                  font=("Segoe UI", 9)).pack(pady=(18, 6))
         self.paste_box = tk.Text(wrap, width=80, height=10, bg=PANEL, fg=TEXT,
@@ -348,15 +401,37 @@ class TranslatorApp(tk.Tk):
                                  relief="flat", highlightbackground=BORDER,
                                  highlightthickness=1)
         self.paste_box.pack()
-        tk.Button(wrap, text="Analyze pasted text", command=self._analyze_paste,
+        paste_actions = tk.Frame(wrap, bg=BG)
+        paste_actions.pack(pady=10)
+        tk.Button(paste_actions, text="Analyze pasted text",
+                  command=self._analyze_paste, bg=PANEL_ALT, fg=TEXT, font=UI,
+                  relief="flat", padx=14, pady=6, activebackground=BORDER,
+                  activeforeground="white").pack(side="left", padx=(0, 8))
+        tk.Button(paste_actions, text="Clear", command=self._clear_paste,
                   bg=PANEL_ALT, fg=TEXT, font=UI, relief="flat", padx=14, pady=6,
-                  activebackground=BORDER, activeforeground="white").pack(pady=10)
+                  activebackground=BORDER, activeforeground="white").pack(side="left")
+
+    def _clear_paste(self):
+        self.paste_box.delete("1.0", "end")
+
+    def _load_from_path_entry(self):
+        path = self.path_var.get().strip()
+        if not path:
+            return
+        expanded = os.path.expanduser(os.path.expandvars(path))
+        if not os.path.isfile(expanded):
+            messagebox.showerror("Cannot open file",
+                                 "No file found at:\n{}".format(path))
+            return
+        self._load_path(expanded)
 
     def _browse(self):
         path = filedialog.askopenfilename(
             title="Select a SOA or TMI report",
             filetypes=[("Report files", "*.txt *.log *.rpt"), ("All files", "*.*")])
         if path:
+            if hasattr(self, "path_var"):
+                self.path_var.set(path)
             self._load_path(path)
 
     def _analyze_paste(self):
@@ -397,6 +472,8 @@ class TranslatorApp(tk.Tk):
                  font=UI_BOLD).pack(side="left")
         badge_bg = "#7c2d12" if report["type"] == "SOA" else "#1e3a8a"
         badge_fg = ORANGE if report["type"] == "SOA" else BLUE
+        if report["type"] == "TMI-TEMP":
+            badge_bg, badge_fg = "#7f1d1d", RED
         tk.Label(header, text=" {} Report ".format(report["type"]), bg=badge_bg,
                  fg=badge_fg, font=("Segoe UI", 9, "bold")).pack(side="left", padx=10)
 
@@ -421,8 +498,12 @@ class TranslatorApp(tk.Tk):
                           font=UI, relief="flat", padx=12, pady=2).pack(side="left", padx=3)
 
         # KPI cards
-        kpis = soa_kpis(report["records"]) if report["type"] == "SOA" \
-            else tmi_kpis(report["records"])
+        if report["type"] == "SOA":
+            kpis = soa_kpis(report["records"])
+        elif report["type"] == "TMI-TEMP":
+            kpis = temp_kpis(report["records"])
+        else:
+            kpis = tmi_kpis(report["records"])
         kpi_row = tk.Frame(self.container, bg=BG, padx=16, pady=12)
         kpi_row.pack(fill="x")
         for label, value, sub, accent in kpis:
@@ -458,6 +539,7 @@ class TranslatorApp(tk.Tk):
     def _build_table_tab(self, master, report):
         frame = tk.Frame(master, bg=BG)
         is_tmi = report["type"] == "TMI"
+        is_temp = report["type"] == "TMI-TEMP"
 
         controls = tk.Frame(frame, bg=BG, pady=8)
         controls.pack(fill="x")
@@ -482,6 +564,10 @@ class TranslatorApp(tk.Tk):
                        ("lifetimeBTI", "Lifetime BTI", 120),
                        ("lifetime_item", "Item", 90), ("eol_spec", "EOL Spec", 90),
                        ("model", "Model", 160)]
+        elif is_temp:
+            columns = [("rank", "Rank", 60), ("instance", "Instance", 320),
+                       ("dtemperature_avg", "dtemperature_avg", 160),
+                       ("annotation", "Note", 60), ("model", "Model", 160)]
         else:
             columns = [("rank", "Rank", 60), ("instance", "Instance", 260),
                        ("count", "# Params", 80), ("params", "Parameters", 150),
@@ -555,6 +641,7 @@ class TranslatorApp(tk.Tk):
         tree.delete(*tree.get_children())
         records = self._filtered_sorted(report, query_var.get())
         is_tmi = report["type"] == "TMI"
+        is_temp = report["type"] == "TMI-TEMP"
         for rec in records:
             if is_tmi:
                 values = [rec["rank"], rec["instance"],
@@ -563,6 +650,12 @@ class TranslatorApp(tk.Tk):
                           format_lifetime_years(rec.get("lifetimeBTI")),
                           rec["lifetime_item"], rec["eol_spec"], rec["model"]]
                 tag = self._lifetime_tag(rec.get("lifetimeHCIBTI"))
+                tree.insert("", "end", values=values, tags=(tag,))
+            elif is_temp:
+                values = [rec["rank"], rec["instance"],
+                          rec["dtemperature_avg_raw"], rec["annotation"],
+                          rec["model"]]
+                tag = self._temperature_tag(rec.get("dtemperature_avg"))
                 tree.insert("", "end", values=values, tags=(tag,))
             else:
                 params = "+".join(dict.fromkeys(v["param"] for v in rec["voltageEntries"]))
@@ -585,6 +678,16 @@ class TranslatorApp(tk.Tk):
         if years < 1:
             return "red"
         if years < 10:
+            return "orange"
+        return "green"
+
+    @staticmethod
+    def _temperature_tag(temp):
+        if not _is_finite_number(temp):
+            return "faint"
+        if temp >= 150:
+            return "red"
+        if temp >= 10:
             return "orange"
         return "green"
 
@@ -620,6 +723,8 @@ class TranslatorApp(tk.Tk):
 
         if report["type"] == "TMI":
             self._tmi_charts(inner, report["records"])
+        elif report["type"] == "TMI-TEMP":
+            self._temp_charts(inner, report["records"])
         else:
             self._soa_charts(inner, report["records"])
         return outer
@@ -662,6 +767,26 @@ class TranslatorApp(tk.Tk):
                                   "mechanism limits reliability most")
         PieChart(panel, [("HCI dominant", hci), ("BTI dominant", bti),
                          ("Mixed / Equal", mixed)]).pack(fill="x")
+
+    def _temp_charts(self, master, records):
+        finite = [r for r in records if _is_finite_number(r.get("dtemperature_avg"))]
+        finite.sort(key=lambda r: r["dtemperature_avg"], reverse=True)
+        top10 = [(".".join(r["instance"].split(".")[-2:]), r["dtemperature_avg"])
+                 for r in finite[:10]]
+        panel = self._chart_panel(master, "Top 10 Hottest Instances",
+                                  "Highest dtemperature_avg \u2014 red \u2265150 \u00b0C "
+                                  "\u00b7 orange \u226510 \u00b0C \u00b7 green <10 \u00b0C")
+        BarChart(panel, top10, horizontal=True, unit=" \u00b0C", height=300,
+                 threshold=150, colorer=temperature_color).pack(fill="x")
+
+        model_counts = {}
+        for r in records:
+            model_counts[r["model"]] = model_counts.get(r["model"], 0) + 1
+        model_dist = sorted(model_counts.items(), key=lambda kv: kv[1],
+                            reverse=True)[:10]
+        panel = self._chart_panel(master, "Instances per Model",
+                                  "Device instance count per transistor model")
+        BarChart(panel, model_dist, horizontal=True, height=240).pack(fill="x")
 
     def _soa_charts(self, master, records):
         param_counts, model_counts = {}, {}
@@ -742,6 +867,12 @@ class TranslatorApp(tk.Tk):
                 v = r.get("lifetimeHCIBTI")
                 if _is_finite_number(v):
                     worst = min(worst, v)
+        elif report_type == "TMI-TEMP":
+            worst = -math.inf
+            for r in node["records"]:
+                v = r.get("dtemperature_avg")
+                if _is_finite_number(v):
+                    worst = max(worst, v)
         else:
             worst = 0.0
             for r in node["records"]:
@@ -761,6 +892,10 @@ class TranslatorApp(tk.Tk):
             if report_type == "TMI":
                 stat = format_lifetime_years(worst) if math.isfinite(worst) else ""
                 tag = self._lifetime_tag(worst) if math.isfinite(worst) else "leaf"
+            elif report_type == "TMI-TEMP":
+                has_temp = math.isfinite(worst)
+                stat = format_temperature(worst) if has_temp else ""
+                tag = self._temperature_tag(worst) if has_temp else "leaf"
             else:
                 stat = "{:.2f}%".format(worst) if worst else ""
                 tag = ("red" if worst > 50 else "orange" if worst > 10
@@ -772,6 +907,9 @@ class TranslatorApp(tk.Tk):
                 if report_type == "TMI":
                     leaf_stat = format_lifetime_years(rec.get("lifetimeHCIBTI"))
                     leaf_tag = self._lifetime_tag(rec.get("lifetimeHCIBTI"))
+                elif report_type == "TMI-TEMP":
+                    leaf_stat = format_temperature(rec.get("dtemperature_avg"))
+                    leaf_tag = self._temperature_tag(rec.get("dtemperature_avg"))
                 else:
                     leaf_stat = "{} violations".format(len(rec["voltageEntries"]))
                     leaf_tag = "leaf"

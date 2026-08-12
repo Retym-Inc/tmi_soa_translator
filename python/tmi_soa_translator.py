@@ -11,6 +11,7 @@ from typing import Dict, List, Union
 
 from parsers.detect import detect_and_parse
 from parsers.tmi import format_lifetime_years
+from parsers.tmi_temp import format_temperature
 
 TOOL_VERSION = "1.0.0"
 
@@ -91,6 +92,19 @@ def _report_to_csv_string(report: dict) -> str:
         for record in report["records"]:
             for row in _soa_csv_rows(record):
                 writer.writerow(row)
+    elif report["type"] == "TMI-TEMP":
+        fieldnames = [
+            "rank",
+            "instance",
+            "dtemperature_avg_raw",
+            "dtemperature_avg",
+            "annotation",
+            "model",
+        ]
+        writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        for record in report["records"]:
+            writer.writerow(record)
     else:
         fieldnames = [
             "rank",
@@ -132,6 +146,18 @@ def _table_for_report(report: dict) -> str:
                 str(len(rec["voltageEntries"])),
                 str(rec["worstDuration"]),
                 str(rec["worstPercent"]),
+            ]
+            for rec in report["records"]
+        ]
+    elif report["type"] == "TMI-TEMP":
+        headers = ["rank", "instance", "dtemperature_avg", "annotation", "model"]
+        rows = [
+            [
+                str(rec["rank"]),
+                str(rec["instance"]),
+                format_temperature(rec.get("dtemperature_avg")),
+                str(rec.get("annotation", "")),
+                str(rec["model"]),
             ]
             for rec in report["records"]
         ]
@@ -205,7 +231,7 @@ def main(argv=None) -> int:
     parser.add_argument("input", nargs="?", help="Input file path or - for stdin")
     parser.add_argument("-o", "--output", help="Output file path")
     parser.add_argument("--format", choices=["json", "csv", "table"], default="json")
-    parser.add_argument("--type", choices=["auto", "soa", "tmi"], default="auto")
+    parser.add_argument("--type", choices=["auto", "soa", "tmi", "tmi-temp"], default="auto")
     parser.add_argument("--version", action="store_true", help="Show tool version and exit")
 
     args = parser.parse_args(argv)

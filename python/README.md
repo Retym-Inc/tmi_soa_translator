@@ -12,8 +12,10 @@ Pure-Python (standard library only), fully offline, cross-platform CLI for parsi
 ## Offline desktop GUI
 
 A Tkinter desktop app that reproduces the web dashboard fully offline: upload/paste
-zone, KPI cards, a sortable/filterable data table with CSV export, charts, and a
-hierarchy tree. It reuses the same parsers as the CLI.
+zone with a **file-path box** and a **Clear** button, KPI cards, a
+sortable/filterable data table with CSV export, charts, and a hierarchy tree. It
+reuses the same parsers as the CLI and supports SOA, TMI lifetime, and TMI
+temperature/degradation (`dtemperature_avg`) reports.
 
 ```bash
 # Open the file picker
@@ -56,6 +58,9 @@ python3 python/tmi_soa_translator.py report.rpt
 
 # Force SOA parse
 python3 python/tmi_soa_translator.py report.rpt --type soa
+
+# Force TMI temperature/degradation parse (dtemperature_avg table)
+python3 python/tmi_soa_translator.py report.rpt --type tmi-temp
 
 # CSV output to stdout
 python3 python/tmi_soa_translator.py report.rpt --format csv

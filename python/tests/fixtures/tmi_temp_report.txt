@@ -1,0 +1,14 @@
+** TMI degradation and lifetime**
+
+** Note 1 : The annotation *on the item of dtemperature_avg means the total temperature has been higher than 150 C.
+** Note 2 : The annotation **on the item of dtemperature_avg means odind, gpocrdx, and a larger-than-one nf are co-existed. TMI will set nf equal to one. 
+
+
+
+Rank      Instance                                                           dtemperature_avg  Model
+1         OUTPUT_DRIVER.I1.M2                                                1.608e+02*        nch_ulvt_mac.1
+1         OUTPUT_DRIVER.I1.M1                                                1.608e+02*        nch_ulvt_mac.1
+2         OUTPUT_DRIVER.I0.M2                                                1.603e+02**       nch_ulvt_mac.1
+3         VCO_TOP.OUTPUT_BUFFER_1.I5.coreInstx4R2                            7.109e+00         nch_elvt_mac.1
+4         VCO_TOP.BIAS_CURRENT_BUFFER.I5.coreInstx1R2                        3.743e+00         pch_elvt_mac.1
+5         VCO_TOP.MID_TUNING_0.I3.I11.M1                                     1.346e+00         pch_lvt_mac.2

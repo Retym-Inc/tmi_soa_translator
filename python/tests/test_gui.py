@@ -49,6 +49,23 @@ class TestGuiHelpers(unittest.TestCase):
         soa_csv = gui.report_to_csv(_load("soa_report.txt"))
         self.assertIn("#Violations", soa_csv)
 
+    def test_temperature_color_thresholds(self):
+        self.assertEqual(gui.temperature_color(160), gui.RED)
+        self.assertEqual(gui.temperature_color(20), gui.ORANGE)
+        self.assertEqual(gui.temperature_color(1), gui.GREEN)
+        self.assertEqual(gui.temperature_color(float("nan")), gui.FAINT)
+
+    def test_temp_kpis(self):
+        report = _load("tmi_temp_report.txt")
+        cards = gui.temp_kpis(report["records"])
+        self.assertEqual(cards[0][0], "Hottest Instance")
+        self.assertEqual(cards[0][2], "OUTPUT_DRIVER.I1.M2")
+
+    def test_temp_report_to_csv_headers(self):
+        temp_csv = gui.report_to_csv(_load("tmi_temp_report.txt"))
+        self.assertIn("dtemperature_avg", temp_csv)
+        self.assertIn("Annotation", temp_csv)
+
     def test_build_hierarchy_nesting(self):
         report = _load("soa_report.txt")
         root = gui.TranslatorApp._build_hierarchy(report["records"])

@@ -7,7 +7,7 @@ from .tmi_temp import parse_tmi_temp
 
 _SOA_DETECT_RE = re.compile(r"Voltage_in_SOA|Safe Operation Area checked")
 _TMI_DETECT_RE = re.compile(r"TMI degradation|didsat\(HCI\+BTI")
-_TMI_TEMP_DETECT_RE = re.compile(r"dtemperature_avg")
+_TMI_TEMP_DETECT_RE = re.compile(r"\bRank\b.*\bInstance\b.*\bdtemperature_avg\b")
 
 
 def detect_and_parse(text: str, report_type: str = "auto") -> Optional[Union[dict, List[dict]]]:
